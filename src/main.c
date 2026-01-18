@@ -8,6 +8,9 @@
 #include <GLES3/gl3.h>
 static EGLDisplay display = EGL_NO_DISPLAY;
 static EGLSurface surface = EGL_NO_SURFACE;
+static EGLContext ctx = EGL_NO_CONTEXT;
+static EGLConfig cfg;
+static bool need_context_rebind;
 extern int main(int argc, char *argv[]);
 
 static struct android_app *g_app;
@@ -15,15 +18,39 @@ static struct android_poll_source *data;
 
 static void handle_cmd(struct android_app *app, int32_t cmd)
 {
-	if (cmd == APP_CMD_INIT_WINDOW && app->window) {
-		display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-		eglInitialize(display, NULL, NULL);
-		EGLConfig cfg;
-		EGLint ncfg;
-		eglChooseConfig(display, (EGLint[]){ EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE }, &cfg, 1, &ncfg);
-		EGLContext ctx = eglCreateContext(display, cfg, EGL_NO_CONTEXT, (EGLint[]){ EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE });
-		surface = eglCreateWindowSurface(display, cfg, app->window, NULL);
-		eglMakeCurrent(display, surface, surface, ctx);
+	switch (cmd) {
+	case APP_CMD_INIT_WINDOW: {
+		if (app->window) {
+			if (need_context_rebind) {
+				EGLint displayFormat = 0;
+				eglGetConfigAttrib(display, cfg, EGL_NATIVE_VISUAL_ID, &displayFormat);
+				need_context_rebind = false;
+				surface = eglCreateWindowSurface(display, cfg, app->window, NULL);
+				eglMakeCurrent(display, surface, surface, ctx);
+			} else {
+				display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+				eglInitialize(display, NULL, NULL);
+				EGLint ncfg;
+				eglChooseConfig(display, (EGLint[]){ EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE }, &cfg, 1, &ncfg);
+				ctx = eglCreateContext(display, cfg, EGL_NO_CONTEXT, (EGLint[]){ EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE });
+				surface = eglCreateWindowSurface(display, cfg, app->window, NULL);
+				eglMakeCurrent(display, surface, surface, ctx);
+			}
+		}
+	} break;
+	case APP_CMD_TERM_WINDOW: {
+		if (display != EGL_NO_DISPLAY) {
+			eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+			if (surface != EGL_NO_SURFACE) {
+				eglDestroySurface(display, surface);
+				surface = EGL_NO_SURFACE;
+			}
+
+			need_context_rebind = true;
+		}
+
+	} break;
 	}
 }
 
