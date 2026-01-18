@@ -104,7 +104,11 @@ bool window_should_close()
 int main(int argc, char *argv[])
 {
 	init_platform();
-	glClearColor(0.392f, 0.584f, 0.929f, 1.0f);
+	if (sizeof(void *) == 8)
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f); // Red for 64-bit
+	else
+		glClearColor(0.392f, 0.584f, 0.929f, 1.0f);
+
 	while (!window_should_close()) {
 		glClear(GL_COLOR_BUFFER_BIT);
 		eglSwapBuffers(display, surface);

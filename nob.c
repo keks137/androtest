@@ -12,14 +12,15 @@
 #define SRC_FOLDER "src/"
 
 #define NDK_PATH "/home/archie/android_sdk/ndk/29.0.14206865/"
-#define ANDROID_LINUX_CC "armv7a-linux-androideabi29-clang"
+#define ANDROID_LINUX_CC_32 "armv7a-linux-androideabi29-clang"
+#define ANDROID_LINUX_CC_64 "aarch64-linux-android29-clang"
 #define ANDROID_LINUX_SDK "/home/archie/android_sdk/"
 #define ANDROID_LINUX_BUILD_TOOLS ANDROID_LINUX_SDK "build-tools/29.0.3/"
 
 #define ANDROIDLINUXBASE BUILD_FOLDER "androidlinux/"
 
 enum {
-	PLATFORM_UNKNOW,
+	PLATFORM_UNKNOWN,
 	PLATFORM_LINUX,
 	PLATFORM_WINDOWS,
 
@@ -34,7 +35,6 @@ enum {
 
 void android_linux_cc_flags(Nob_Cmd *cmd)
 {
-	nob_cmd_append(cmd, NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/bin/" ANDROID_LINUX_CC);
 	nob_cmd_append(cmd, "-Wall");
 	nob_cmd_append(cmd, "-Wextra");
 	nob_cmd_append(cmd, "-L./build");
@@ -49,7 +49,20 @@ void android_linux_cc_flags(Nob_Cmd *cmd)
 	nob_cmd_append(cmd, "-fPIC");
 	nob_cmd_append(cmd, "-I" NDK_PATH "/sources/android/native_app_glue");
 	nob_cmd_append(cmd, "-I" NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include");
+}
+
+void android_linux_cc_32_flags(Nob_Cmd *cmd)
+{
+	nob_cmd_append(cmd, NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/bin/" ANDROID_LINUX_CC_32);
 	nob_cmd_append(cmd, "-I" NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/arm-linux-androideabi");
+	android_linux_cc_flags(cmd);
+}
+
+void android_linux_cc_64_flags(Nob_Cmd *cmd)
+{
+	nob_cmd_append(cmd, NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/bin/" ANDROID_LINUX_CC_64);
+	nob_cmd_append(cmd, "-I" NDK_PATH "/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android");
+	android_linux_cc_flags(cmd);
 }
 
 bool build_linux_linux()
@@ -78,21 +91,31 @@ bool build_android_linux()
 
 	nob_mkdir_if_not_exists(ANDROIDLINUXBASE);
 	nob_mkdir_if_not_exists(ANDROIDLINUXBASE "lib/");
-	nob_mkdir_if_not_exists(ANDROIDLINUXBASE "lib/armeabi-v7a");
 
 	nob_cmd_append(&cmd, "pwd");
 
 	if (!nob_cmd_run(&cmd))
 		return false;
 
-	android_linux_cc_flags(&cmd);
+	nob_mkdir_if_not_exists(ANDROIDLINUXBASE "lib/armeabi-v7a");
+	android_linux_cc_32_flags(&cmd);
 	nob_cmd_append(&cmd, "-ggdb");
 	nob_cc_inputs(&cmd, SRC_FOLDER "main.c");
 	nob_cmd_append(&cmd, NDK_PATH "/sources/android/native_app_glue/android_native_app_glue.c");
 	nob_cc_output(&cmd, ANDROIDLINUXBASE "lib/armeabi-v7a/libmain.so");
-
-	nob_temp_reset();
 	nob_cmd_append(&cmd, "-lm");
+
+	if (!nob_cmd_run(&cmd))
+		return false;
+
+	nob_mkdir_if_not_exists(ANDROIDLINUXBASE "lib/arm64-v8a");
+	android_linux_cc_64_flags(&cmd);
+	nob_cmd_append(&cmd, "-ggdb");
+	nob_cc_inputs(&cmd, SRC_FOLDER "main.c");
+	nob_cmd_append(&cmd, NDK_PATH "/sources/android/native_app_glue/android_native_app_glue.c");
+	nob_cc_output(&cmd, ANDROIDLINUXBASE "lib/arm64-v8a/libmain.so");
+	nob_cmd_append(&cmd, "-lm");
+
 	if (!nob_cmd_run(&cmd))
 		return false;
 
@@ -170,7 +193,7 @@ bool build_current_platform()
 	case PLATFORM_LINUX:
 		ret = build_linux_linux();
 		break;
-	case PLATFORM_UNKNOW:
+	case PLATFORM_UNKNOWN:
 		nob_log(NOB_ERROR, "Unknown Platform");
 		break;
 	}
