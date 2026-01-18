@@ -119,6 +119,15 @@ bool build_android_linux()
 	if (!nob_cmd_run(&cmd))
 		return false;
 
+	if (!nob_file_exists("debug.keystore")) {
+		nob_cmd_append(&cmd, "keytool", "-genkey", "-v", "-keystore", "debug.keystore",
+			       "-alias", "androiddebugkey", "-storepass", "android", "-keypass", "android",
+			       "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000",
+			       "-dname", "CN=Android Debug,O=Android,C=US");
+
+		if (!nob_cmd_run(&cmd))
+			return false;
+	}
 	chdir(ANDROIDLINUXBASE);
 	const char *stringsxmlpath = "res/values/strings.xml";
 	if (!nob_file_exists(stringsxmlpath)) {
@@ -165,17 +174,7 @@ bool build_android_linux()
 	if (!nob_cmd_run(&cmd))
 		return false;
 
-	if (!nob_file_exists("debug.keystore")) {
-		nob_cmd_append(&cmd, "keytool", "-genkey", "-v", "-keystore", "debug.keystore",
-			       "-alias", "androiddebugkey", "-storepass", "android", "-keypass", "android",
-			       "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000",
-			       "-dname", "CN=Android Debug,O=Android,C=US");
-
-		if (!nob_cmd_run(&cmd))
-			return false;
-	}
-
-	nob_cmd_append(&cmd, ANDROID_LINUX_BUILD_TOOLS "apksigner", "sign", "--ks", "debug.keystore", "--ks-pass", "pass:android", "--key-pass", "pass:android", "aligned.apk");
+	nob_cmd_append(&cmd, ANDROID_LINUX_BUILD_TOOLS "apksigner", "sign", "--ks", "../../debug.keystore", "--ks-pass", "pass:android", "--key-pass", "pass:android", "aligned.apk");
 	if (!nob_cmd_run(&cmd))
 		return false;
 	chdir("../..");
