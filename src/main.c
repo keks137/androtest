@@ -58,20 +58,27 @@ void init_platform()
 			if (data != NULL)
 				data->process(g_app, data);
 		}
-
-		// struct android_poll_source *src;
-		// if (ALooper_pollAll(-1, NULL, NULL, (void **)&src) >= 0)
-		// 	if (src)
-		// 		src->process(g_app, src);
 	}
 	ANativeActivity_setWindowFlags(g_app->activity, AWINDOW_FLAG_FULLSCREEN, 0);
 	AConfiguration_setOrientation(g_app->config, ACONFIGURATION_ORIENTATION_LAND);
 }
+
+bool window_should_close()
+{
+	struct android_poll_source *src;
+	int events;
+	while (ALooper_pollOnce(0, NULL, &events, (void **)&src) >= 0) {
+		if (src)
+			src->process(g_app, src);
+	}
+	return g_app->destroyRequested;
+}
+
 int main(int argc, char *argv[])
 {
 	init_platform();
 	glClearColor(0.392f, 0.584f, 0.929f, 1.0f);
-	while (1) {
+	while (!window_should_close()) {
 		glClear(GL_COLOR_BUFFER_BIT);
 		eglSwapBuffers(display, surface);
 	}
